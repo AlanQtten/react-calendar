@@ -43,11 +43,11 @@ subValueResolver用于声明一组同步函数，第一个非空结果将作为�
 
 ```js
 const {
-	subValueResolver = [
+  subValueResolver = [
     normalCnHolidayResolver,
     normalHolidayResolver,
     termOrDayCnResolver,
-	]
+  ]
 } = props
 ```
 
@@ -76,7 +76,7 @@ import {
   normalCnHoliday,
   normalCnHolidayResolver,
   normalHoliday,
-	normalHolidayResolver
+  normalHolidayResolver
 } from '@/utils/subValueResolver'
 
 const myNormalCnHolidayMap = {
@@ -104,10 +104,10 @@ const pureCustomResolver = ({ month, day }) => {
 }
 
 export default App() {
-	const [ currentDay ] = useState(dayjs())
+  const [ currentDay ] = useState(dayjs())
 
   return <>
-  	<Calendar
+    <Calendar
       currentDay={currentDay}
       subValueResolver={[
       	myNormalCnHolidayResolver,
