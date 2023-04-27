@@ -1,64 +1,79 @@
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
 import { createUseStyles } from "react-jss";
 import type $dayjs from 'dayjs'
 import cx from 'classnames'
 
 import { normalCnHolidayResolver, normalHolidayResolver, termOrDayCnResolver } from "@/utils/subValueResolver";
 import { dayJs2Solar, getDateOrder, dayjs } from "@/utils/dateTransform";
-import { weekendInDayjs, weekNumber, weekTitle } from "@/utils/dateConstant";
+import { weekendInDayjs, weekTitle } from "@/utils/dateConstant";
+import usePrevious from "@/hooks/usePrevious";
 
-const useStyle = createUseStyles({
-  wrapper: {
-    width: 700,
-    margin: '16px 0 0 16px',
-  },
-  calendar: {
-    width: '100%',
-    display: 'flex',
-    flexWrap: 'wrap',
-    '& > div': {
-      width: 100,
-      height: 50,
-      lineHeight: '50px',
-      textAlign: 'center',
-      border: '1px solid transparent',
-      boxSizing: 'border-box',
-      '&.red': {
-        color: 'rgba(255, 0, 0, .9)',
-      },
-      '&.gray': {
-        color: 'rgba(80, 80, 80, .5)'
-      },
-      '&.date': {
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        '& > span': {
-          '&:nth-child(1)': {
-            fontSize: 20,
-            lineHeight: '30px'
-          },
-          '&:nth-child(2)': {
-            lineHeight: '15px'
+const useStyle = createUseStyles<any, any, any>({
+  calendar: ({ blockHeight, blockGap }) => {
+    return {
+      width: '100%',
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      '& > div': {
+        width: `calc((100% - ${blockGap * 6}px) / 7)`,
+        height: blockHeight,
+        textAlign: 'center',
+        border: '2px solid transparent',
+        borderRadius: '10px',
+        boxSizing: 'border-box',
+        marginBottom: blockGap,
+        '&.red': {
+          '& > span:nth-child(1)': {
+            color: '#F73131',
           }
+        },
+        '&.gray': {
+          opacity: 0.4,
+        },
+        '&.date': {
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          '& > span': {
+            '&:nth-child(1)': {
+              fontSize: 20,
+            },
+            '&:nth-child(2)': {
+              fontSize: 12,
+              color: '#333'
+            }
+          },
+          '&:hover': {
+            border: '2px solid #4E6EF2',
+          }
+        },
+        '&.highlight': {
+          border: '2px solid #4E6EF2',
         }
-      },
-      '&.highlight': {
-        border: '1px solid rgba(0, 0, 255, .5)',
-        borderRadius: '10px'
       }
     }
   },
+  weekTitle: {
+    lineHeight: ({ blockHeight }) => `${blockHeight}px`
+  }
 })
 
 type CalendarProps = {
-  currentDay: $dayjs.Dayjs //
-  startOfWeek?: typeof weekNumber[number]
+  // 数据相关
+  currentDay: $dayjs.Dayjs // 当前日期，会根据这个日期来生成日历视图，日期改变但月份不变的情况下日历视图不会刷新
+  startOfWeek?: number
   fillRowBeforeCurrentMonth?: boolean // 当这个月的第一天出现在第一列，是否在上面再补一行上月的日期
   fillRowAfterCurrentMonth?: boolean // 当这个月的最后一天出现在最后一列，是否在下面再补一行下月的日期
   highlightCurrentDay?: boolean // 是否高亮当前天，默认高亮
 
+  // 样式相关
+  blockHeight?: number
+  blockGap?: number
+
+  // 事件和函数
   onMonthChange?: (v: $dayjs.Dayjs) => void // 月份改变时触发
   onClickOnDateBlock?: (v: any) => void // 点击日期时触发
   subValueResolver?: Array<(...args: any) => string> // 日期格附文字解析器，会按照数组顺序进行匹配，第一个匹配到的结果会展示
@@ -72,18 +87,23 @@ function InternalCalendar(props: CalendarProps, ref) {
     fillRowBeforeCurrentMonth = true,
     fillRowAfterCurrentMonth = true,
     highlightCurrentDay = true,
+
+    blockHeight = 60,
+    blockGap = 4,
+
     onMonthChange = () => {},
     onClickOnDateBlock = () => {},
     subValueResolver = [
       normalCnHolidayResolver,
       normalHolidayResolver,
       termOrDayCnResolver,
-    ]
+    ],
   } = props
 
   const [dateBlockList, setDateBlockList] = useState<any[]>([])
-  const classes = useStyle()
-  const prevDate = usePrevious(currentDay)
+  const classes = useStyle({ blockHeight, blockGap })
+  const prevDate = usePrevious<$dayjs.Dayjs>(currentDay)
+  const prevStartOfWeek = usePrevious<number>(startOfWeek)
 
   const internalSubValueResolver = useCallback((djs) => {
     const l = subValueResolver.length
@@ -145,12 +165,15 @@ function InternalCalendar(props: CalendarProps, ref) {
     }))
   }
 
-  const generateCalendar = (pvDate) => {
-    if(pvDate && (pvDate.month() === currentDay.month())) {
+  const generateCalendar = () => {
+    if(
+      (prevDate && (prevDate.month() === currentDay.month()))
+      &&
+      (prevStartOfWeek === startOfWeek)
+    ) {
       highlightCurrentDay && setDateBlockList(highlight(dateBlockList))
       return
     }
-    onMonthChange(currentDay)
     const startOfThisMonth = currentDay.startOf('month')
     const preFixCount = getPrefixCount(startOfThisMonth)
     const lastDayOfLastMonth = startOfThisMonth.subtract(1, 'day')
@@ -192,8 +215,11 @@ function InternalCalendar(props: CalendarProps, ref) {
   }
 
   useEffect(() => {
-    generateCalendar(prevDate)
-  }, [currentDay])
+    if(prevDate && (prevDate.month() !== currentDay.month())) {
+      onMonthChange(currentDay)
+    }
+    generateCalendar()
+  }, [currentDay, startOfWeek])
 
   const internalWeekTitle = useMemo(() => {
     const _weekTitle = [...weekTitle]
@@ -202,11 +228,11 @@ function InternalCalendar(props: CalendarProps, ref) {
     return _weekTitle
   }, [startOfWeek])
 
-  return <div className={classes.wrapper}>
+  return (
     <div className={classes.calendar}>
       {
         internalWeekTitle.map((_, index) => {
-          return <div key={index}>{_}</div>
+          return <div key={index} className={classes.weekTitle}>{_}</div>
         })
       }
       {
@@ -229,17 +255,7 @@ function InternalCalendar(props: CalendarProps, ref) {
         })
       }
     </div>
-  </div>
-}
-
-function usePrevious(value) {
-  const ref = useRef()
-
-  useEffect(() => {
-    ref.current = value
-  }, [value])
-
-  return ref.current
+  )
 }
 
 export default forwardRef(InternalCalendar)
