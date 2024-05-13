@@ -1,10 +1,11 @@
 import Calendar from "./components/Calendar";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { fuResolver, termOrDayCnResolver, winter29And39Resolver } from "@/utils/subValueResolver";
 
 export default function App() {
   const [d, setD] = useState(dayjs())
+  const [startOfWeek, setStartOfWeek] = useState(1)
 
   const change2PrevMonth = () => {
     setD(d.subtract(1, 'month'))
@@ -19,8 +20,8 @@ export default function App() {
     setD(d.add(1, 'day'))
   }
 
-  const yearAndMonth = useMemo(() => {
-    return d.format('YYYY-MM')
+  const dateStr = useMemo(() => {
+    return d.format('YYYY-MM-DD')
   }, [d])
 
   const onMonthChange = () => {
@@ -35,20 +36,39 @@ export default function App() {
         <button onClick={change2PrevDay}>昨天</button>
         <button onClick={change2NextDay}>明天</button>
       </div>
-      <div>{ yearAndMonth }</div>
-      <Calendar
-        startOfWeek={1}
-        currentDay={d}
-        onClickOnDateBlock={({ dayjsObject }) => {
-          setD(dayjsObject)
-        }}
-        subValueResolver={[
-          winter29And39Resolver,
-          fuResolver,
-          termOrDayCnResolver
-        ]}
-        onMonthChange={onMonthChange}
-      />
+      <div>
+        startOfWeek:
+        {
+          Array(7).fill(0).map((_, index) =>
+            <Fragment key={index}>
+              <input
+                type='radio'
+                name='startOfWeek'
+                onChange={(e) => { setStartOfWeek(+e.target.value) }}
+                checked={startOfWeek === index + 1}
+                value={index + 1}
+              />
+              { index + 1 }
+            </Fragment>
+          )
+        }
+      </div>
+      <div>{ dateStr }</div>
+      <div style={{ width: 700, margin: '16px 0 0 16px' }}>
+        <Calendar
+          startOfWeek={startOfWeek}
+          currentDay={d}
+          onClickOnDateBlock={({ dayjsObject }) => {
+            setD(dayjsObject)
+          }}
+          subValueResolver={[
+            winter29And39Resolver,
+            fuResolver,
+            termOrDayCnResolver
+          ]}
+          onMonthChange={onMonthChange}
+        />
+      </div>
     </>
   );
 }
