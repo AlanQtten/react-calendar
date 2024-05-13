@@ -3,6 +3,7 @@
 ## Feature
 
 - [ ] 添加更多视图（周、月）
+- [ ] 抽离数据和视图，封装useMonth，useWeekOfYear等等
 - [ ] 让日历支持事件
 - [ ] 发布为npm包
 - [ ] 优化winter29And39Resolver和fuResolver
